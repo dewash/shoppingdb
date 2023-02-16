@@ -1,0 +1,551 @@
+
+
+Use Master;        
+GO
+
+exec sp_who2
+------------------------------------------------------------------------------------
+-- Drop database if necessary
+------------------------------------------------------------------------------------
+IF EXISTS (SELECT * FROM sysdatabases WHERE name = N'ShoppingDatabase')
+    DROP DATABASE ShoppingDatabase;
+
+GO
+------------------------------------------------------------------------------------------------
+-- Create the DATABASE
+------------------------------------------------------------------------------------------------
+CREATE DATABASE[ShoppingDatabase]
+ON PRIMARY 
+(Name = N'ShoppingDatabase',
+FileName = N'C:\Program Files\Microsoft SQL Server\MSSQL15.SQLEXPRESS\MSSQL\DATA\ShoppingDatabase.mdf', 
+SIZE = 5MB,
+FILEGROWTH = 1MB)
+LOG ON
+(Name = N'ShoppingDatabase_Log',
+FileName = N'C:\Program Files\Microsoft SQL Server\MSSQL15.SQLEXPRESS\MSSQL\DATA\ShoppingDatabase_Log.ldf',
+SIZE = 2MB,
+FILEGROWTH = 1MB);
+
+GO
+------------------------------
+-----Use Shopping Db----------- 
+-------------------------------
+USE ShoppingDatabase;
+GO
+
+----------------------------------------
+--- Dropping TABLES if they are there----
+------------------------------------------
+IF EXISTS (SELECT * FROM sys.tables WHERE Name = N'OrderItem')
+DROP TABLE OrderItem;
+
+IF EXISTS (SELECT * FROM sys.tables WHERE Name = N'VendorProduct')
+DROP TABLE VendorProduct;
+
+IF EXISTS (SELECT * FROM sys.tables WHERE Name = N'OrderTable')
+DROP TABLE OrderTable;
+
+IF EXISTS (SELECT * FROM sys.tables WHERE Name = N'Product')
+DROP TABLE Product;
+
+IF EXISTS (SELECT * FROM sys.tables WHERE Name = N'Vendor')
+DROP TABLE Vendor;
+
+IF EXISTS (SELECT * FROM sys.tables WHERE Name = N'Customer')
+DROP TABLE Customer;
+
+IF EXISTS (SELECT * FROM sys.tables WHERE Name = N'Supplier')
+DROP TABLE Supplier;
+
+GO
+------------------------
+-- Create TABLES --------
+-------------------------
+CREATE TABLE Customer (
+    sdCustomer_id int NOT NULL IDENTITY (1, 1)
+    , customerEmailAddress NVarchar(255) NOT NULL
+    , customerFirstName NVarchar(50) NOT NULL
+    , customerLastName NVarchar(50) NOT NULL
+    , customerStreetAddress NVarchar(255) NOT NULL
+    , customerCity NVarchar(50) NOT NULL
+    , customerState Nvarchar(2) NOT NULL
+    , customerZip NVarchar(9) NOT NULL
+);
+
+CREATE TABLE Vendor (
+    sdVendor_id int NOT NULL IDENTITY (1, 1)
+    , vendorName NVarchar(255) NOT NULL
+    , vendorAddress NVarchar(255) NOT NULL
+    , vendorCity NVarchar(50) NOT NULL
+    , vendorState NVarchar(2) NOT NULL
+    , vendorZip NVarchar(9) NOT NULL
+	, vendorEmailAddress NVarchar(255)
+	, vendorPhone NVarchar(10)
+);
+
+Create TABLE Supplier (
+    sdSupplier_id int IDENTITY(1,1) NOT NULL
+    , supplierName nvarchar(255)
+    , supplierAddress nVarchar(255)NOT NULL
+    , supplierCity NVarchar(50)NOT NULL
+    , supplierState NVarchar(2) NOT NULL
+    , supplierZip NVarchar(9) NOT NULL
+	, supplierPhone NVarchar(10) NOT NULL
+	, supplierEmailAddress NVarchar(255) NOT NULL
+);
+
+CREATE TABLE OrderTable (
+    sdOrder_id int IDENTITY (1,1) NOT NULL
+    , sdCustomer_id int NOT NULL
+	, orderDateTime dateTime NOT NULL
+    , shippingCost smallMoney NOT NULL
+	, taxAmount smallMoney 
+    , subTotal smallMoney 
+    , orderTotal smallMoney 
+);
+
+CREATE TABLE Product (
+    sdProduct_id int NOT NULL IDENTITY (1, 1)
+    , productName NVarchar(255) NOT NULL
+	, sdSupplier_id int NOT NULL 
+    , description NVarchar(255) 
+);
+
+Create TABLE VendorProduct (
+    sdVendorProduct_id int NOT NULL IDENTITY (1,1)
+    , sdVendor_id int NOT NULL
+    , sdProduct_id int NOT NULL
+    , productPrice smallMoney NOT NULL
+    , quantityAvailable int NOT NULL
+);
+
+CREATE TABLE OrderItem (
+    sdOrder_id int NOT NULL
+    , sdVendorProduct_id int NOT NULL
+    , quantity int NOT NULL
+);
+
+GO
+------------------------------------------------------------------------------------------------
+-------- Create Primary Key---------------------------------------------------------------------
+------------------------------------------------------------------------------------------------
+ALTER TABLE Customer
+    ADD CONSTRAINT PK_Customer
+    PRIMARY KEY (sdCustomer_id);
+	
+ALTER TABLE Vendor 
+    ADD CONSTRAINT PK_Vendor
+    PRIMARY KEY (sdVendor_id);
+
+ALTER TABLE Supplier 
+    ADD CONSTRAINT PK_Supplier
+    PRIMARY KEY (sdSupplier_id);
+
+ALTER TABLE OrderTable
+    ADD CONSTRAINT PK_OrderTable
+    PRIMARY KEY (sdOrder_id);
+
+ALTER TABLE Product
+    ADD CONSTRAINT PK_Product
+    PRIMARY KEY (sdProduct_id);
+
+ALTER TABLE VendorProduct
+    ADD CONSTRAINT PK_VendorProduct
+    PRIMARY KEY (sdVendorProduct_id);
+
+ALTER TABLE OrderItem
+    ADD CONSTRAINT PK_OrderItem
+    PRIMARY KEY (sdOrder_id, sdVendorProduct_id);
+
+GO
+------------------------------------------------------------------------------------------------
+------ Create Foreign Key --------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------
+ALTER TABLE OrderTable
+    ADD CONSTRAINT FK_OrderTable_sdCustomerID
+    FOREIGN KEY (sdCustomer_id) REFERENCES Customer (sdCustomer_id);
+
+ALTER TABLE OrderItem
+    ADD CONSTRAINT FK_OrderItem_sdOrder_id
+    FOREIGN KEY (sdOrder_id) REFERENCES OrderTable (sdOrder_id);
+
+ALTER TABLE OrderItem
+    ADD CONSTRAINT FK_OrderItem_sdVendorProduct_id
+    FOREIGN KEY (sdVendorProduct_id) REFERENCES VendorProduct (sdVendorProduct_id);
+
+ALTER TABLE VendorProduct
+    ADD CONSTRAINT FK_VendorProduct_sdVendor_id
+    FOREIGN KEY (sdVendor_id) REFERENCES Vendor (sdVendor_id);
+
+ALTER TABLE VendorProduct
+    ADD CONSTRAINT FK_VendorProduct_sdProduct_id
+    FOREIGN KEY (sdProduct_id) REFERENCES Product (sdProduct_id);
+
+ALTER TABLE Product
+    ADD CONSTRAINT FK_Product_sdSupplier_id
+    FOREIGN KEY (sdSupplier_id) REFERENCES Supplier (sdSupplier_id);
+
+GO
+------------------------------------------------------------------------------------------------
+--------- Create Alternate Key -----------------------------------------------------------------
+------------------------------------------------------------------------------------------------
+ALTER TABLE Customer
+    ADD CONSTRAINT AK_Customer_customerEmailAddress
+    UNIQUE (customerEmailAddress);
+
+ALTER TABLE OrderTable
+    ADD CONSTRAINT AK_OrderTable_orderDateTime_sdCustomer_id
+    UNIQUE (sdCustomer_id, orderDateTime);
+
+ALTER TABLE VendorProduct
+    ADD CONSTRAINT AK_VendorProduct_sdVendor_id_sdProduct_id
+    UNIQUE (sdVendor_id, sdProduct_id);
+
+ALTER TABLE Vendor
+    ADD CONSTRAINT AK_Vendor_vendorName
+    UNIQUE (vendorName);
+
+ALTER TABLE Product
+    ADD CONSTRAINT AK_Product_productName
+    UNIQUE (productName);
+
+ALTER TABLE Supplier
+    ADD CONSTRAINT AK_Supplier_supplierName
+    UNIQUE (supplierName);
+    
+GO
+------------------------------------------------------------------------------------------------
+------------- Create Data Constraints ----------------------------------------------------------
+------------------------------------------------------------------------------------------------
+ALTER TABLE Customer  
+    ADD CONSTRAINT CK_CustomerEmailAddress 
+    CHECK (customerEmailAddress LIKE '%@%.%');
+
+ALTER TABLE Customer   
+    ADD CONSTRAINT CK_Customer_Zip 
+    CHECK (customerZip LIKE '[0-9][0-9][0-9][0-9][0-9]'
+    OR customerZip LIKE '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]');
+
+ALTER TABLE Vendor  
+    ADD CONSTRAINT CK_Vendor_Phone 
+    CHECK (VendorPhone LIKE '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]');
+
+ALTER TABLE Vendor
+    ADD CONSTRAINT CK_VendorEmailAddress 
+    CHECK (vendorEmailAddress LIKE '%@%.%');
+
+ALTER TABLE Vendor   
+    ADD CONSTRAINT CK_Vendor_Zip 
+    CHECK (vendorZip LIKE '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]'
+    OR vendorZip LIKE '[0-9][0-9][0-9][0-9][0-9]');
+
+ALTER TABLE Supplier   
+    ADD CONSTRAINT CK_Supplier_Zip 
+    CHECK (supplierZip LIKE '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]'
+    OR supplierZip LIKE '[0-9][0-9][0-9][0-9][0-9]');
+
+ALTER TABLE VendorProduct
+	ADD CONSTRAINT CK_VendorProduct_QuantityAvailable
+	CHECK (quantityAvailable > 0), 
+	CHECK (productPrice > 0);
+
+ALTER TABLE Supplier  
+    ADD CONSTRAINT CK_Supplier_Phone 
+    CHECK (supplierPhone LIKE '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]');
+
+ALTER TABLE Supplier  
+    ADD CONSTRAINT CK_SupplierEmailAddress 
+    CHECK (supplierEmailAddress LIKE '%@%.%');
+
+GO
+
+
+------------------------
+-----Creating Procedueres
+IF EXISTS (SELECT * FROM Information_Schema.Routines WHERE Routine_Name = 'usp_addCustomer')
+    DROP PROCEDURE usp_addCustomer
+GO
+
+-------------------------
+Create PROCEDURE dbo.usp_addCustomer
+@customerFirstName NVARCHAR(25)
+, @customerLastName NVARCHAR(50)
+, @customerEmailAddress NVARCHAR(255)
+, @customerStreetAddress NVARCHAR(255)
+, @customerCity NVARCHAR(5)
+, @customerState NVARCHAR(2)
+, @customerZip NVARCHAR(9)
+
+AS
+	Begin 
+		Begin Try
+---------------------------
+----Inserting data---------
+---------------------------
+
+
+----- Customer Table -----
+
+INSERT INTO Customer (customerFirstName, customerLastName, customerEmailAddress, customerStreetAddress, customerCity, customerState, customerZip) 
+VALUES (@customerFirstName, @customerLastName, @customerEmailAddress, @customerStreetAddress, @customerCity, @customerState, @customerZip);
+End Try 
+Begin Catch
+Print'The insert into customer Table failed For : 
+customerFirstName: '+ @customerFirstName +' 
+, customerLastName: '+ @customerLastName +' 
+, customerEmailAddress: ' + @customerEmailAddress +' 
+, customerStreetAddress: ' + @customerStreetAddress +' 
+, customerCity: ' + @customerCity +' 
+, customerState: ' + @customerState +' 
+, customerZip: ' + @customerZip 
+
+end catch
+end
+GO
+-------Product-------
+If exists (SELECT * From Inforamtion_SCHEMA.Routines Where Specific_name = N'usp_addProduct'
+Drop PROCEDURE usp_addProduct;
+GO
+CREATE PROCEDURE usp_addProduct
+  @supplierName NVARCHAR(50)
+, @productName NVARCHAR(50)
+, @discription NVARCHAR(255)
+AS 
+Begin
+Begin Try
+
+INSERT INTO Product (sdSupplier_id, productName,description) VALUES(
+( SELECT sdSupplier_id From Supplier Where supplierName = @supplierName)
+, @productName
+, @description
+)
+END TRY
+Begin Catch
+Print ' The INSERT into product Table failed For:
+  supplierName '+ @supplierName
+, productName ' + @productName
+, description ' + @description
+
+EnD Catch
+EnD
+GO
+
+
+CREATE PROCEDURE dbo.up_addOrder
+@orderDateTime NVARCHAR(255)
+,@customerFirstName NVARCHAR(25)
+
+(select CONVERT (datetime,  '1/4/2023 10:28:36 PM'))
+(SELECT Convert (datetime, @orderDateTime))
+-------------------------
+
+-----------------------------------------------
+----Creating the subtotal and other stuff------
+-----------------------------------------------
+
+UPDATE OrderTable
+SET subTotal = OrderItem.total
+FROM OrderTable
+INNER JOIN
+	(
+		SELECT sdOrder_id, SUM(quantity * productPrice) total
+		FROM OrderItem
+		INNER JOIN VendorProduct
+		ON OrderItem.sdVendorProduct_id = VendorProduct.sdVendorProduct_id
+		GROUP BY sdOrder_id 
+	)
+OrderItem
+ON OrderTable.sdOrder_id = OrderItem.sdOrder_id;
+
+UPDATE OrderTable
+SET taxAmount = subTotal * 0.05;  
+
+UPDATE OrderTable
+SET orderTotal = shippingCost + taxAmount + subTotal;
+
+
+---------------------------------------------
+----Execute STATEMENT------------------------
+---------------------------------------------
+
+----------Customers----------
+
+EXECUTE dbo.usp_addCustomer @customerFirstName = 'Donette', @customerLastName = 'Foller', @customerEmailAddress = 'donette.foller@cox.net', @customerStreetAddress = '34 Center St', @customerCity = 'Hamilton', @customerState = 'OH', @customerZip = '45011', @customerPhoneNumber = '5135701893';
+EXECUTE dbo.usp_addCustomer @customerFirstName = 'Maryann', @customerLastName = 'Royster', @customerEmailAddress = 'mroyster@royster.com', @customerStreetAddress = '74 S Westgate St', @customerCity = 'Albany', @customerState = 'NY', @customerZip = '12204', @customerPhoneNumber = '5189667987';
+EXECUTE dbo.usp_addCustomer @customerFirstName = 'Ernie', @customerLastName = 'Stenseth', @customerEmailAddress = 'ernie_stenseth@aol.com', @customerStreetAddress = '45 E Liberty St', @customerCity = 'Ridgefield Park', @customerState = 'NJ', @customerZip = '7660', @customerPhoneNumber = '2017096245';
+EXECUTE dbo.usp_addCustomer @customerFirstName = 'Jina', @customerLastName = 'Briddick', @customerEmailAddress = 'jina_briddick@briddick.com', @customerStreetAddress = '38938 Park Blvd', @customerCity = 'Boston', @customerState = 'MA', @customerZip = '2128', @customerPhoneNumber = '6173995124';
+EXECUTE dbo.usp_addCustomer @customerFirstName = 'Sabra', @customerLastName = 'Uyetake', @customerEmailAddress = 'sabra@uyetake.org', @customerStreetAddress = '98839 Hawthorne Blvd #6101', @customerCity = 'Columbia', @customerState = 'SC', @customerZip = '29201', @customerPhoneNumber = '8039255213';
+EXECUTE dbo.usp_addCustomer @customerFirstName = 'Bobbye', @customerLastName = 'Rhym', @customerEmailAddress = 'brhym@rhym.com', @customerStreetAddress = '30 W 80th St #1995', @customerCity = 'San Carlos', @customerState = 'CA', @customerZip = '94070', @customerPhoneNumber = '6505285783';
+EXECUTE dbo.usp_addCustomer @customerFirstName = 'Viva', @customerLastName = 'Toelkes', @customerEmailAddress = 'viva.toelkes@gmail.com', @customerStreetAddress = '4284 Dorigo Ln', @customerCity = 'Chicago', @customerState = 'IL', @customerZip = '60647', @customerPhoneNumber = '7734465569';
+EXECUTE dbo.usp_addCustomer @customerFirstName = 'Dominque', @customerLastName = 'Dickerson', @customerEmailAddress = 'dominque.dickerson@dickerson.org', @customerStreetAddress = '69 Marquette Ave', @customerCity = 'Hayward', @customerState = 'CA', @customerZip = '94545', @customerPhoneNumber = '5109933758';
+EXECUTE dbo.usp_addCustomer @customerFirstName = 'Latrice', @customerLastName = 'Tolfree', @customerEmailAddress = 'latrice.tolfree@hotmail.com', @customerStreetAddress = '81 Norris Ave #525', @customerCity = 'Ronkonkoma', @customerState = 'NY', @customerZip = '11779', @customerPhoneNumber = '6319577624';
+EXECUTE dbo.usp_addCustomer @customerFirstName = 'Stephaine', @customerLastName = 'Vinning', @customerEmailAddress = 'stephaine@cox.net', @customerStreetAddress = '3717 Hamann Industrial Pky', @customerCity = 'San Francisco', @customerState = 'CA', @customerZip = '94104', @customerPhoneNumber = '4157676596';
+
+---------Supplier---------
+
+EXECUTE dbo.usp_addSupplier @supplierName = 'Printing Dimensions', @supplierAddress = '34 Center St', @supplierCity = 'Hamilton', @supplierState = 'OH', @supplierZip =  '45011', @supplierPhone = '5135701893', @supplierEmailAddress = 'info@printingdimensions.com';
+EXECUTE dbo.usp_addSupplier @supplierName = 'Franklin Peters Inc', @supplierAddress = '74 S Westgate St', @supplierCity = 'Albany', @supplierState = 'NY', @supplierZip =  '12204', @supplierPhone = '5189667987', @supplierEmailAddress = 'help@FranklinPeters.com';
+EXECUTE dbo.usp_addSupplier @supplierName = 'Knwz Products', @supplierAddress = '45 E Liberty St', @supplierCity = 'Ridgefield Park', @supplierState = 'NJ', @supplierZip =  '7660', @supplierPhone = '2017096245', @supplierEmailAddress = 'helpdesk@knwzproducts.com';
+EXECUTE dbo.usp_addSupplier @supplierName = 'Grace Pastries Inc', @supplierAddress = '38938 Park Blvd', @supplierCity = 'Boston', @supplierState = 'MA', @supplierZip =  '2128', @supplierPhone = '6173995124', @supplierEmailAddress = 'support@gracepastries.com';
+EXECUTE dbo.usp_addSupplier @supplierName = 'Lowy Products and Service', @supplierAddress = '98839 Hawthorne Blvd #6101', @supplierCity = 'Columbia', @supplierState = 'SC', @supplierZip =  '29201', @supplierPhone = '8039255213', @supplierEmailAddress = 'support@lowyproducts.com';
+EXECUTE dbo.usp_addSupplier @supplierName = 'Smits, Patricia Garity', @supplierAddress = '30 W 80th St #1995', @supplierCity = 'San Carlos', @supplierState = 'CA', @supplierZip =  '94070', @supplierPhone = '6505285783', @supplierEmailAddress = 'help@smitspatriciagarity.com';
+EXECUTE dbo.usp_addSupplier @supplierName = 'Mark Iv Press', @supplierAddress = '4284 Dorigo Ln', @supplierCity = 'Chicago', @supplierState = 'IL', @supplierZip =  '60647', @supplierPhone = '7734465569', @supplierEmailAddress = 'info@mark4press.com';
+EXECUTE dbo.usp_addSupplier @supplierName = 'E A I Electronic Assocs Inc', @supplierAddress = '69 Marquette Ave', @supplierCity = 'Hayward', @supplierState = 'CA', @supplierZip =  '94545', @supplierPhone = '5109933758', @supplierEmailAddress = 'info@eaielectronics.com';
+EXECUTE dbo.usp_addSupplier @supplierName = 'United Product Lines', @supplierAddress = '81 Norris Ave #525', @supplierCity = 'Ronkonkoma', @supplierState = 'NY', @supplierZip =  '11779', @supplierPhone = '6319577624', @supplierEmailAddress = 'support@uniteddproducts.com';
+EXECUTE dbo.usp_addSupplier @supplierName = 'Birite Foodservice', @supplierAddress = '3717 Hamann Industrial Pky', @supplierCity = 'San Francisco', @supplierState = 'CA', @supplierZip =  '94104', @supplierPhone = '4157676596', @supplierEmailAddress = 'help@birite.com';
+EXECUTE dbo.usp_addSupplier @supplierName = 'Roberts Supply Co Inc', @supplierAddress = '8429 Miller Rd', @supplierCity = 'Pelham', @supplierState = 'NY', @supplierZip =  '10803', @supplierPhone = '9148685965', @supplierEmailAddress = 'helpdesk@robertssupplyco.com';
+EXECUTE dbo.usp_addSupplier @supplierName = 'Harris Corporation', @supplierAddress = '4 Iwaena St', @supplierCity = 'Baltimore', @supplierState = 'MD', @supplierZip =  '21202', @supplierPhone = '4108907866', @supplierEmailAddress = 'info@harriscorp.com';
+EXECUTE dbo.usp_addSupplier @supplierName = 'Armon Communications', @supplierAddress = '9 State Highway 57 #22', @supplierCity = 'Jersey City', @supplierState = 'NJ', @supplierZip =  '7306', @supplierPhone = '2019918369', @supplierEmailAddress = 'service@armoncommunications.com';
+EXECUTE dbo.usp_addSupplier @supplierName = 'Tipiak Inc', @supplierAddress = '80312 W 32nd St', @supplierCity = 'Conroe', @supplierState = 'TX', @supplierZip =  '77301', @supplierPhone = '9367517961', @supplierEmailAddress = 'help@tipiak.com';
+EXECUTE dbo.usp_addSupplier @supplierName = 'Sportmaster International', @supplierAddress = '6 Sunrise Ave', @supplierCity = 'Utica', @supplierState = 'NY', @supplierZip =  '13501', @supplierPhone = '3158182638', @supplierEmailAddress = 'info@sportsmasterinternation.com';
+EXECUTE dbo.usp_addSupplier @supplierName = 'Acme Supply Co', @supplierAddress = '1953 Telegraph Rd', @supplierCity = 'Saint Joseph', @supplierState = 'MO', @supplierZip =  '64504', @supplierPhone = '8165579673', @supplierEmailAddress = 'helpdesk@acmesupply,com';
+EXECUTE dbo.usp_addSupplier @supplierName = 'Warehouse Office & Paper Prod', @supplierAddress = '61556 W 20th Ave', @supplierCity = 'Seattle', @supplierState = 'WA', @supplierZip =  '98104', @supplierPhone = '2067116498', @supplierEmailAddress = 'info@warehouseofficepaper.com';
+
+------Vendor-----
+
+EXECUTE dbo.usp_addVendor @vendorName = 'Eagle Software Inc', @vendorAddress = '5384 Southwyck Blvd', @VendorCity = 'Douglasville', @VendorState = 'GA', @vendorZip = '30135', @vendorPhone = '7705078791', @vendorEmailAddress = 'info@eaglesoftwareinc.com';
+EXECUTE dbo.usp_addVendor @vendorName = 'Art Crafters', @vendorAddress = '703 Beville Rd', @VendorCity = 'Opa Locka', @VendorState = 'FL', @vendorZip = '33054', @vendorPhone = '3056709628', @vendorEmailAddress = 'support@artcrafters.com';
+EXECUTE dbo.usp_addVendor @vendorName = 'Burton & Davis', @vendorAddress = '70 Mechanic St', @VendorCity = 'Northridge', @VendorState = 'CA', @vendorZip = '91325', @vendorPhone = '8188644875', @vendorEmailAddress = 'helpdesk@burtondavis.com';
+EXECUTE dbo.usp_addVendor @vendorName = 'Jets Cybernetics', @vendorAddress = '99586 Main St', @VendorCity = 'Dallas', @VendorState = 'TX', @vendorZip = '75207', @vendorPhone = '2144282285', @vendorEmailAddress = 'info@jetscybernetics.com';
+EXECUTE dbo.usp_addVendor @vendorName = 'Professionals Unlimited', @vendorAddress = '66697 Park Pl #3224', @VendorCity = 'Riverton', @VendorState = 'WY', @vendorZip = '82501', @vendorPhone = '3073427795', @vendorEmailAddress = 'inquiry@professionalsunlimited.com';
+EXECUTE dbo.usp_addVendor @vendorName = 'Linguistic Systems Inc', @vendorAddress = '506 S Hacienda Dr', @VendorCity = 'Atlantic City', @VendorState = 'NJ', @vendorZip = '8401', @vendorPhone = '6092285265', @vendorEmailAddress = 'help@linguisticsystemsinc.com';
+EXECUTE dbo.usp_addVendor @vendorName = 'Price Business Services', @vendorAddress = '7 West Ave #1', @VendorCity = 'Palatine', @VendorState = 'IL', @vendorZip = '60067', @vendorPhone = '8472221734', @vendorEmailAddress = 'support@pricebusinessservices.com';
+EXECUTE dbo.usp_addVendor @vendorName = 'Mitsumi Electronics Corp', @vendorAddress = '9677 Commerce Dr', @VendorCity = 'Richmond', @VendorState = 'VA', @vendorZip = '23219', @vendorPhone = '8045505097', @vendorEmailAddress = 'support@mitsumielectronicscorp.com';
+EXECUTE dbo.usp_addVendor @vendorName = 'Sidewinder Products Corp', @vendorAddress = '8573 Lincoln Blvd', @VendorCity = 'York', @VendorState = 'PA', @vendorZip = '17404', @vendorPhone = '7178093119', @vendorEmailAddress = 'helpdesk@sidewinderproductscorp.com';
+EXECUTE dbo.usp_addVendor @vendorName = 'Circuit Solution Inc', @vendorAddress = '39 Moccasin Dr', @VendorCity = 'San Francisco', @VendorState = 'CA', @vendorZip = '94104', @vendorPhone = '4154111775', @vendorEmailAddress = 'answers@circuitsolutioninc.com';
+
+------OrderTable-----
+EXECUTE dbo.usp_addOrderTable @sdCustomer_id = (SELECT sdCustomer_id FROM Customer WHERE customerFirstName = 'Donette' AND customerLastName = 'Foller'), @orderDateTime = '01/04/23 10:28 PM', @shippingCost = 10;
+EXECUTE dbo.usp_addOrderTable @sdCustomer_id = (SELECT sdCustomer_id FROM Customer WHERE customerFirstName = 'Maryann' AND customerLastName = 'Royster'), @orderDateTime ='01/06/23 07:20 AM',@shippingCost=10;
+EXECUTE dbo.usp_addOrderTable @sdCustomer_id = (SELECT sdCustomer_id FROM Customer WHERE customerFirstName = 'Ernie' AND customerLastName = 'Stenseth'), @orderDateTime = '02/23/23 03:21 AM', @shippingCost =10;
+EXECUTE dbo.usp_addOrderTable @sdCustomer_id = (SELECT sdCustomer_id FROM Customer WHERE customerFirstName = 'Jina' AND customerLastName = 'Briddick'),@orderDateTime ='01/23/23 01:41 PM',@shippingCost = 10;
+EXECUTE dbo.usp_addOrderTable @sdCustomer_id = (SELECT sdCustomer_id FROM Customer WHERE customerFirstName = 'Sabra' AND customerLastName = 'Uyetake'),@orderDateTime ='02/24/23 06:50 PM',@shippingCost = 10;
+EXECUTE dbo.usp_addOrderTable @sdCustomer_id = (SELECT sdCustomer_id FROM Customer WHERE customerFirstName = 'Bobbye' AND customerLastName = 'Rhym'),@orderDateTime ='01/18/23 11:45 PM',@shippingCost = 10;
+EXECUTE dbo.usp_addOrderTable @sdCustomer_id = (SELECT sdCustomer_id FROM Customer WHERE customerFirstName = 'Viva' AND customerLastName = 'Toelkes'),@orderDateTime ='02/07/23 04:22 PM',@shippingCost = 10;
+EXECUTE dbo.usp_addOrderTable @sdCustomer_id = (SELECT sdCustomer_id FROM Customer WHERE customerFirstName = 'Dominque' AND customerLastName = 'Dickerson'),@orderDateTime ='02/23/23 08:17 PM',@shippingCost = 10;
+EXECUTE dbo.usp_addOrderTable @sdCustomer_id = (SELECT sdCustomer_id FROM Customer WHERE customerFirstName = 'Latrice' AND customerLastName = 'Tolfree'),@orderDateTime ='02/25/23 05:45 PM',@shippingCost = 10;
+EXECUTE dbo.usp_addOrderTable @sdCustomer_id = (SELECT sdCustomer_id FROM Customer WHERE customerFirstName = 'Ernie' AND customerLastName = 'Stenseth'),@orderDateTime ='01/19/23 05:13 AM',@shippingCost = 10;
+EXECUTE dbo.usp_addOrderTable @sdCustomer_id = (SELECT sdCustomer_id FROM Customer WHERE customerFirstName = 'Dominque' AND customerLastName = 'Dickerson'),@orderDateTime ='01/20/23 04:41 PM',@shippingCost = 10;
+
+------OrderItem-----
+
+EXECUTE dbo.usp_addOrderItem @sdOrder_id = (SELECT sdOrder_id FROM OrderTable WHERE orderDateTime = '01/04/23 10:28 PM'), @sdVendorProduct_id=(SELECT sdVendor_id FROM Vendor WHERE vendorName = 'Eagle Software Inc'), @quantity=1;
+EXECUTE dbo.usp_addOrderItem @sdOrder_id = (SELECT sdOrder_id FROM OrderTable WHERE orderDateTime = '01/04/23 10:28 PM'), @sdVendorProduct_id=(SELECT sdVendor_id FROM Vendor WHERE vendorName = 'Burton & Davis'),@quantity=2) ;
+EXECUTE dbo.usp_addOrderItem @sdOrder_id = (SELECT sdOrder_id FROM OrderTable WHERE orderDateTime = '01/06/23 07:20 AM'), @sdVendorProduct_id=(SELECT sdVendor_id FROM Vendor WHERE vendorName = 'Jets Cybernetics'),@quantity= 20);
+EXECUTE dbo.usp_addOrderItem @sdOrder_id = (SELECT sdOrder_id FROM OrderTable WHERE orderDateTime = '01/06/23 07:20 AM'),@sdVendorProduct_id= (SELECT sdVendor_id FROM Vendor WHERE vendorName = 'Linguistic Systems Inc'), @quantity=2);
+EXECUTE dbo.usp_addOrderItem @sdOrder_id = (SELECT sdOrder_id FROM OrderTable WHERE orderDateTime = '02/23/23 03:21 AM'),@sdVendorProduct_id=(SELECT sdVendor_id FROM Vendor WHERE vendorName = 'Burton & Davis'),@quantity=3);
+EXECUTE dbo.usp_addOrderItem @sdOrder_id = (SELECT sdOrder_id FROM OrderTable WHERE orderDateTime = '02/23/23 03:21 AM'),@sdVendorProduct_id=(SELECT sdVendor_id FROM Vendor WHERE vendorName = 'Professionals Unlimited'),@quantity=4);
+EXECUTE dbo.usp_addOrderItem @sdOrder_id = (SELECT sdOrder_id FROM OrderTable WHERE orderDateTime = '01/23/23 01:41 PM'),@sdVendorProduct_id=(SELECT sdVendor_id FROM Vendor WHERE vendorName = 'Sidewinder Products Corp'),@quantity=2);
+EXECUTE dbo.usp_addOrderItem @sdOrder_id = (SELECT sdOrder_id FROM OrderTable WHERE orderDateTime = '01/23/23 01:41 PM'),@sdVendorProduct_id=(SELECT sdVendor_id FROM Vendor WHERE vendorName = 'Circuit Solution Inc'),@quantity=6);
+EXECUTE dbo.usp_addOrderItem @sdOrder_id = (SELECT sdOrder_id FROM OrderTable WHERE orderDateTime = '01/23/23 01:41 PM'),@sdVendorProduct_id=(SELECT sdVendor_id FROM Vendor WHERE vendorName = 'Eagle Software Inc'),@quantity=2);
+EXECUTE dbo.usp_addOrderItem @sdOrder_id = (SELECT sdOrder_id FROM OrderTable WHERE orderDateTime = '02/24/23 06:50 PM'),@sdVendorProduct_id=(SELECT sdVendor_id FROM Vendor WHERE vendorName = 'Price Business Services'),@quantity=2);
+EXECUTE dbo.usp_addOrderItem @sdOrder_id = (SELECT sdOrder_id FROM OrderTable WHERE orderDateTime = '02/24/23 06:50 PM'),@sdVendorProduct_id=(SELECT sdVendor_id FROM Vendor WHERE vendorName = 'Mitsumi Electronics Corp'),@quantity=2);
+EXECUTE dbo.usp_addOrderItem @sdOrder_id = (SELECT sdOrder_id FROM OrderTable WHERE orderDateTime = '01/18/23 11:45 PM'),@sdVendorProduct_id=(SELECT sdVendor_id FROM Vendor WHERE vendorName = 'Burton & Davis'), @quantity=2);
+EXECUTE dbo.usp_addOrderItem @sdOrder_id = (SELECT sdOrder_id FROM OrderTable WHERE orderDateTime = '01/18/23 11:45 PM'),@sdVendorProduct_id=(SELECT sdVendor_id FROM Vendor WHERE vendorName = 'Sidewinder Products Corp'), @quantity=2);
+EXECUTE dbo.usp_addOrderItem @sdOrder_id = (SELECT sdOrder_id FROM OrderTable WHERE orderDateTime = '02/07/23 04:22 PM'),@sdVendorProduct_id=(SELECT sdVendor_id FROM Vendor WHERE vendorName = 'Eagle Software Inc'),@quantity=2);
+EXECUTE dbo.usp_addOrderItem @sdOrder_id = (SELECT sdOrder_id FROM OrderTable WHERE orderDateTime = '02/07/23 04:22 PM'),@sdVendorProduct_id=(SELECT sdVendor_id FROM Vendor WHERE vendorName = 'Art Crafters'),@quantity=2);
+EXECUTE dbo.usp_addOrderItem @sdOrder_id = (SELECT sdOrder_id FROM OrderTable WHERE orderDateTime = '02/23/23 08:17 PM'),@sdVendorProduct_id=(SELECT sdVendor_id FROM Vendor WHERE vendorName = 'Linguistic Systems Inc'),@quantity=2);
+EXECUTE dbo.usp_addOrderItem @sdOrder_id = (SELECT sdOrder_id FROM OrderTable WHERE orderDateTime = '02/25/23 05:45 PM'),@sdVendorProduct_id=(SELECT sdVendor_id FROM Vendor WHERE vendorName = 'Circuit Solution Inc'),@quantity=2);
+EXECUTE dbo.usp_addOrderItem @sdOrder_id = (SELECT sdOrder_id FROM OrderTable WHERE orderDateTime = '02/25/23 05:45 PM'),@sdVendorProduct_id=(SELECT sdVendor_id FROM Vendor WHERE vendorName = 'Professionals Unlimited'),@quantity=2);
+EXECUTE dbo.usp_addOrderItem @sdOrder_id = (SELECT sdOrder_id FROM OrderTable WHERE orderDateTime = '02/16/23 09:43 AM'),@sdVendorProduct_id=(SELECT sdVendor_id FROM Vendor WHERE vendorName = 'Eagle Software Inc'),@quantity=2);
+EXECUTE dbo.usp_addOrderItem @sdOrder_id = (SELECT sdOrder_id FROM OrderTable WHERE orderDateTime = '01/19/23 05:13 AM'),@sdVendorProduct_id=(SELECT sdVendor_id FROM Vendor WHERE vendorName = 'Jets Cybernetics'),@quantity=2);
+EXECUTE dbo.usp_addOrderItem @sdOrder_id = (SELECT sdOrder_id FROM OrderTable WHERE orderDateTime = '01/19/23 05:13 AM'),@sdVendorProduct_id=(SELECT sdVendor_id FROM Vendor WHERE vendorName = 'Linguistic Systems Inc'),@quantity=5);
+EXECUTE dbo.usp_addOrderItem @sdOrder_id = (SELECT sdOrder_id FROM OrderTable WHERE orderDateTime = '01/20/23 04:41 PM'),@sdVendorProduct_id=(SELECT sdVendor_id FROM Vendor WHERE vendorName = 'Burton & Davis'),@quantity=5);
+EXECUTE dbo.usp_addOrderItem @sdOrder_id = (SELECT sdOrder_id FROM OrderTable WHERE orderDateTime = '01/20/23 04:41 PM'),@sdVendorProduct_id=(SELECT sdVendor_id FROM Vendor WHERE vendorName = 'Price Business Services'),@quantity=3);
+EXECUTE dbo.usp_addOrderItem @sdOrder_id = (SELECT sdOrder_id FROM OrderTable WHERE orderDateTime = '01/20/23 04:41 PM'),@sdVendorProduct_id=(SELECT sdVendor_id FROM Vendor WHERE vendorName = 'Eagle Software Inc'),@quantity=2);
+
+
+----- VendorProduct Table -----
+EXECUTE dbo.usp_addVendorProduct @sdvendor_id = (SELECT sdVendor_id FROM Vendor WHERE vendorName =  'Eagle Software Inc'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Black Weber State University Women''s Hooded Sweatshirt'), @productPrice = '48', @quantityAvailable = 20;
+EXECUTE dbo.usp_addVendorProduct @sdvendor_id = (SELECT sdVendor_id FROM Vendor WHERE vendorName =  'Art Crafters'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Yellow Weber State University 16 oz. Tumbler'), @productPrice = '42', @quantityAvailable = 20;
+EXECUTE dbo.usp_addVendorProduct @sdvendor_id = (SELECT sdVendor_id FROM Vendor WHERE vendorName =  'Burton & Davis'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Rain Poncho'), @productPrice = '5.95', @quantityAvailable = 20;
+EXECUTE dbo.usp_addVendorProduct @sdvendor_id = (SELECT sdVendor_id FROM Vendor WHERE vendorName =  'Jets Cybernetics'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Alumni T-Shirt'), @productPrice = '19.95', @quantityAvailable = 20;
+EXECUTE dbo.usp_addVendorProduct @sdvendor_id = (SELECT sdVendor_id FROM Vendor WHERE vendorName =  'Professionals Unlimited'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Volleyball Short Sleeve T-Shirt'), @productPrice = '19.95', @quantityAvailable = 20;
+EXECUTE dbo.usp_addVendorProduct @sdvendor_id = (SELECT sdVendor_id FROM Vendor WHERE vendorName =  'Linguistic Systems Inc'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Wildcats State Decal'), @productPrice = '6.95', @quantityAvailable = 20;
+EXECUTE dbo.usp_addVendorProduct @sdvendor_id = (SELECT sdVendor_id FROM Vendor WHERE vendorName =  'Price Business Services'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Putter Cover'), @productPrice = '25', @quantityAvailable = 20;
+EXECUTE dbo.usp_addVendorProduct @sdvendor_id = (SELECT sdVendor_id FROM Vendor WHERE vendorName =  'Mitsumi Electronics Corp'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Crew Socks'), @productPrice = '18', @quantityAvailable = 20;
+EXECUTE dbo.usp_addVendorProduct @sdvendor_id = (SELECT sdVendor_id FROM Vendor WHERE vendorName =  'Sidewinder Products Corp'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Short Sleeve T-Shirt'), @productPrice = '30', @quantityAvailable = 20;
+EXECUTE dbo.usp_addVendorProduct @sdvendor_id = (SELECT sdVendor_id FROM Vendor WHERE vendorName =  'Circuit Solution Inc'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Boys'' Tri-Blend Short Sleeve T-Shirt'), @productPrice = '15.99', @quantityAvailable = 20;
+EXECUTE dbo.usp_addVendorProduct @sdvendor_id = (SELECT sdVendor_id FROM Vendor WHERE vendorName =  'Eagle Software Inc'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Coaches Hat'), @productPrice = '25', @quantityAvailable = 20;
+EXECUTE dbo.usp_addVendorProduct @sdvendor_id = (SELECT sdVendor_id FROM Vendor WHERE vendorName =  'Art Crafters'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Black Weber State University Women''s Hooded Sweatshirt'), @productPrice = '48', @quantityAvailable = 20;
+EXECUTE dbo.usp_addVendorProduct @sdvendor_id = (SELECT sdVendor_id FROM Vendor WHERE vendorName =  'Burton & Davis'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Yellow Weber State University 16 oz. Tumbler'), @productPrice = '42', @quantityAvailable = 20;
+EXECUTE dbo.usp_addVendorProduct @sdvendor_id = (SELECT sdVendor_id FROM Vendor WHERE vendorName =  'Jets Cybernetics'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Rain Poncho'), @productPrice = '5.95', @quantityAvailable = 20;
+EXECUTE dbo.usp_addVendorProduct @sdvendor_id = (SELECT sdVendor_id FROM Vendor WHERE vendorName =  'Professionals Unlimited'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Alumni T-Shirt'), @productPrice = '19.95', @quantityAvailable = 20;
+EXECUTE dbo.usp_addVendorProduct @sdvendor_id = (SELECT sdVendor_id FROM Vendor WHERE vendorName =  'Linguistic Systems Inc'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Volleyball Short Sleeve T-Shirt'), @productPrice = '19.95', @quantityAvailable = 20;
+EXECUTE dbo.usp_addVendorProduct @sdvendor_id = (SELECT sdVendor_id FROM Vendor WHERE vendorName =  'Price Business Services'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Wildcats State Decal'), @productPrice = '6.95', @quantityAvailable = 20;
+EXECUTE dbo.usp_addVendorProduct @sdvendor_id = (SELECT sdVendor_id FROM Vendor WHERE vendorName =  'Mitsumi Electronics Corp'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Putter Cover'), @productPrice = '25', @quantityAvailable = 20;
+EXECUTE dbo.usp_addVendorProduct @sdvendor_id = (SELECT sdVendor_id FROM Vendor WHERE vendorName =  'Sidewinder Products Corp'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Crew Socks'), @productPrice = '18', @quantityAvailable = 20;
+EXECUTE dbo.usp_addVendorProduct @sdvendor_id = (SELECT sdVendor_id FROM Vendor WHERE vendorName =  'Circuit Solution Inc'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Short Sleeve T-Shirt'), @productPrice = '30', @quantityAvailable = 20;
+EXECUTE dbo.usp_addVendorProduct @sdvendor_id = (SELECT sdVendor_id FROM Vendor WHERE vendorName =  'Eagle Software Inc'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Boys'' Tri-Blend Short Sleeve T-Shirt'), @productPrice = '15.99', @quantityAvailable = 20;
+EXECUTE dbo.usp_addVendorProduct @sdvendor_id = (SELECT sdVendor_id FROM Vendor WHERE vendorName =  'Art Crafters'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Coaches Hat'), @productPrice = '25', @quantityAvailable = 20;
+EXECUTE dbo.usp_addVendorProduct @sdvendor_id = (SELECT sdVendor_id FROM Vendor WHERE vendorName =  'Burton & Davis'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Black Weber State University Women''s Hooded Sweatshirt'), @productPrice = '48', @quantityAvailable = 20;
+EXECUTE dbo.usp_addVendorProduct @sdvendor_id = (SELECT sdVendor_id FROM Vendor WHERE vendorName =  'Jets Cybernetics'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Yellow Weber State University 16 oz. Tumbler'), @productPrice = '42', @quantityAvailable = 20;
+EXECUTE dbo.usp_addVendorProduct @sdvendor_id = (SELECT sdVendor_id FROM Vendor WHERE vendorName =  'Professionals Unlimited'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Rain Poncho'), @productPrice = '5.95', @quantityAvailable = 20;
+EXECUTE dbo.usp_addVendorProduct @sdvendor_id = (SELECT sdVendor_id FROM Vendor WHERE vendorName =  'Linguistic Systems Inc'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Alumni T-Shirt'), @productPrice = '19.95', @quantityAvailable = 20;
+EXECUTE dbo.usp_addVendorProduct @sdvendor_id = (SELECT sdVendor_id FROM Vendor WHERE vendorName =  'Price Business Services'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Volleyball Short Sleeve T-Shirt'), @productPrice = '19.95', @quantityAvailable = 20;
+EXECUTE dbo.usp_addVendorProduct @sdvendor_id = (SELECT sdVendor_id FROM Vendor WHERE vendorName =  'Mitsumi Electronics Corp'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Wildcats State Decal'), @productPrice = '6.95', @quantityAvailable = 20;
+EXECUTE dbo.usp_addVendorProduct @sdvendor_id = (SELECT sdVendor_id FROM Vendor WHERE vendorName =  'Sidewinder Products Corp'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Putter Cover'), @productPrice = '25', @quantityAvailable = 20;
+EXECUTE dbo.usp_addVendorProduct @sdvendor_id = (SELECT sdVendor_id FROM Vendor WHERE vendorName =  'Circuit Solution Inc'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Crew Socks'), @productPrice = '18', @quantityAvailable = 20;
+
+
+------Product-------
+EXECUTE dbo.usp_addProduct @sdSupplier_id = (SELECT sdSupplier_id FROM Supplier WHERE supplierName = 'Printing Dimensions'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'White Weber State University Women''s Tank Top'), @productPrice = 24, @quantityAvailable = 20;
+EXECUTE dbo.usp_addProduct @sdSupplier_id = (SELECT sdSupplier_id FROM Supplier WHERE supplierName = 'Franklin Peters Inc'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Black Weber State University Women''s Hooded Sweatshirt'), @productPrice = 48, @quantityAvailable = 20;
+EXECUTE dbo.usp_addProduct @sdSupplier_id = (SELECT sdSupplier_id FROM Supplier WHERE supplierName = 'Knwz Products'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Steel Grey Weber State University Women''s Cropped Short Sleeve T-Shirt'), @productPrice = 26, @quantityAvailable = 20;
+EXECUTE dbo.usp_addProduct @sdSupplier_id = (SELECT sdSupplier_id FROM Supplier WHERE supplierName = 'Lowy Products and Service'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Yellow Weber State University 16 oz. Tumbler'), @productPrice = 42, @quantityAvailable = 20;
+EXECUTE dbo.usp_addProduct @sdSupplier_id = (SELECT sdSupplier_id FROM Supplier WHERE supplierName = 'Warehouse Office & Paper Prod'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Academic Year Planner'), @productPrice = 9.74, @quantityAvailable = 20;
+EXECUTE dbo.usp_addProduct @sdSupplier_id = (SELECT sdSupplier_id FROM Supplier WHERE supplierName = 'Smits, Patricia Garity'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'White Weber State University Orbiter Pen'), @productPrice = 1.95, @quantityAvailable = 20;
+EXECUTE dbo.usp_addProduct @sdSupplier_id = (SELECT sdSupplier_id FROM Supplier WHERE supplierName = 'Mark Iv Press'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Silver Weber State University Wildcats Keytag'), @productPrice = 14, @quantityAvailable = 20;
+EXECUTE dbo.usp_addProduct @sdSupplier_id = (SELECT sdSupplier_id FROM Supplier WHERE supplierName = 'Acme Supply Co'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Silver Weber State University Money Clip'), @productPrice = 28, @quantityAvailable = 20;
+EXECUTE dbo.usp_addProduct @sdSupplier_id = (SELECT sdSupplier_id FROM Supplier WHERE supplierName = 'United Product Lines'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Rain Poncho'), @productPrice = 5.95, @quantityAvailable = 20;
+EXECUTE dbo.usp_addProduct @sdSupplier_id = (SELECT sdSupplier_id FROM Supplier WHERE supplierName = 'Franklin Peters Inc'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Crew Neck Sweatshirt'), @productPrice = 34, @quantityAvailable = 20;
+EXECUTE dbo.usp_addProduct @sdSupplier_id = (SELECT sdSupplier_id FROM Supplier WHERE supplierName = 'Birite Foodservice'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Lip Balm'), @productPrice = 2.95, @quantityAvailable = 20;
+EXECUTE dbo.usp_addProduct @sdSupplier_id = (SELECT sdSupplier_id FROM Supplier WHERE supplierName = 'Harris Corporation'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Alumni T-Shirt'), @productPrice = 19.95, @quantityAvailable = 20;
+EXECUTE dbo.usp_addProduct @sdSupplier_id = (SELECT sdSupplier_id FROM Supplier WHERE supplierName = 'Armon Communications'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Dad Short Sleeve T-Shirt'), @productPrice = 19.95, @quantityAvailable = 20;
+EXECUTE dbo.usp_addProduct @sdSupplier_id = (SELECT sdSupplier_id FROM Supplier WHERE supplierName = 'Tipiak Inc'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Volleyball Short Sleeve T-Shirt'), @productPrice = 19.95, @quantityAvailable = 20;
+EXECUTE dbo.usp_addProduct @sdSupplier_id = (SELECT sdSupplier_id FROM Supplier WHERE supplierName = 'Sportmaster International'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Wildcats Rambler 20 oz. Tumbler'), @productPrice = 40, @quantityAvailable = 20;
+EXECUTE dbo.usp_addProduct @sdSupplier_id = (SELECT sdSupplier_id FROM Supplier WHERE supplierName = 'E A I Electronic Assocs Inc'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University OtterBox iPhone 7/8 Symmetry Series Case'), @productPrice = 49.95, @quantityAvailable = 20;
+EXECUTE dbo.usp_addProduct @sdSupplier_id = (SELECT sdSupplier_id FROM Supplier WHERE supplierName = 'Warehouse Office & Paper Prod'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Wildcats State Decal'), @productPrice = 6.95, @quantityAvailable = 20;
+EXECUTE dbo.usp_addProduct @sdSupplier_id = (SELECT sdSupplier_id FROM Supplier WHERE supplierName = 'Printing Dimensions'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Mom Decal'), @productPrice = 6.95, @quantityAvailable = 20;
+EXECUTE dbo.usp_addProduct @sdSupplier_id = (SELECT sdSupplier_id FROM Supplier WHERE supplierName = 'Printing Dimensions'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Wildcats Decal'), @productPrice = 5.95, @quantityAvailable = 20;
+EXECUTE dbo.usp_addProduct @sdSupplier_id = (SELECT sdSupplier_id FROM Supplier WHERE supplierName = 'United Product Lines'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Putter Cover'), @productPrice = 25, @quantityAvailable = 20;
+EXECUTE dbo.usp_addProduct @sdSupplier_id = (SELECT sdSupplier_id FROM Supplier WHERE supplierName = 'Franklin Peters Inc'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Jersey'), @productPrice = 30, @quantityAvailable = 20;
+EXECUTE dbo.usp_addProduct @sdSupplier_id = (SELECT sdSupplier_id FROM Supplier WHERE supplierName = 'Smits, Patricia Garity'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Crew Socks'), @productPrice = 18, @quantityAvailable = 20;
+EXECUTE dbo.usp_addProduct @sdSupplier_id = (SELECT sdSupplier_id FROM Supplier WHERE supplierName = 'Acme Supply Co'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Short Sleeve T-Shirt'), @productPrice = 30, @quantityAvailable = 20;
+EXECUTE dbo.usp_addProduct @sdSupplier_id = (SELECT sdSupplier_id FROM Supplier WHERE supplierName = 'Grace Pastries Inc'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University .75L Camelbak Bottle'), @productPrice = 22, @quantityAvailable = 20;
+EXECUTE dbo.usp_addProduct @sdSupplier_id = (SELECT sdSupplier_id FROM Supplier WHERE supplierName = 'Knwz Products'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Boys'' Tri-Blend Short Sleeve T-Shirt'), @productPrice = 15.99, @quantityAvailable = 20;
+EXECUTE dbo.usp_addProduct @sdSupplier_id = (SELECT sdSupplier_id FROM Supplier WHERE supplierName = 'Roberts Supply Co Inc'), @sdProduct_id = (SELECT sdProduct_id FROM Product WHERE productName = 'Weber State University Coaches Hat'), @productPrice = 25, @quantityAvailable = 20;
+
+-----use this for exel-----
+/*
+= CONCATENATE('EXECUTE dbo.usp_addCustomer @customerFirstName = '",A2, "',@customerLastName = '",B2,
+"'@customerEmailAddress='",C2,"', @customerStreetAddress = '",D2,"',@customerCity ='",E2,"',
+@customerState = '",F2,"', @customerZip = '"G2,"';"')      */                          
+-----exel up-----
+---Select
+
+
+SELECT 'This is table' AS "Customer";
+SELECT * FROM Customer;
+
+SELECT 'This is table' AS "Vendor";
+SELECT * FROM Vendor;
+
+SELECT 'This is table' AS "OrderTable";
+SELECT * FROM OrderTable;
+
+SELECT 'This is table' AS "OrderItem";
+SELECT * FROM OrderItem;
+
+SELECT 'This is table' AS "Supplier";
+SELECT * FROM Supplier;
+
+SELECT 'This is table' AS "Product";
+SELECT * FROM Product;
+
+SELECT 'This is table' AS "VendorProduct";
+SELECT * FROM VendorProduct;
+
+GO
+
+
